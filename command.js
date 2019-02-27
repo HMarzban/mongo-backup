@@ -8,7 +8,7 @@ const childProcess = require('child_process');
  * @param {String} command 
  * @param {String} commandName 
  */
-const ExecuteCommand = async (command, commandName) => {
+const ExecuteCommand = (command, commandName) => {
     return new Promise((resolve, reject) => {
         childProcess.exec(command, (err, stdout) => {
         console.log(stdout);
@@ -40,7 +40,7 @@ const ExecuteCommand = async (command, commandName) => {
  * @param {String} options.hostName         localhost
  * @param {String} options.userName         admin
  * @param {String} options.password         12345
- * @param {String} options.port         27017
+ * @param {String} options.port             27017
  * @param {String} options.databaseName     productsReview
  * @param {String} options.collectionName   rate
  * @param {String} options.output           ./output.json
@@ -102,9 +102,6 @@ const mongodump = (options) => {
     }) // @Promis()
     
 } // @Function: mongodump()
-
-
-
 
 
  
