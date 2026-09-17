@@ -8,7 +8,7 @@ const { mongodump, mongoexport } = require("./command");
         const dumpOption = {
             gzip: true,
             hostName: "localhost",
-            portName: "27017",
+            port: "27017",
             databaseName: "appReview",
             output: outputDir,
         }
@@ -16,7 +16,7 @@ const { mongodump, mongoexport } = require("./command");
         // Export By: mongoexport
          const exportOption = {
             hostName: "localhost",
-            portName: "27017",
+            port: "27017",
             databaseName: "appReview",
             collectionName: "rate",
             output: `${outputDir}.json`

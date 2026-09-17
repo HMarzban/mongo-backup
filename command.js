@@ -1,186 +1,89 @@
-const childProcess = require('child_process');
+const childProcess = require('node:child_process');
 
-
-/**
- * Execute input command 
- * @private
- * 
- * @param {String} command 
- * @param {String} commandName 
- */
-const ExecuteCommand = (command, commandName) => {
-    return new Promise((resolve, reject) => {
-        childProcess.exec(command, (err, stdout) => {
-        console.log(stdout);
-        if (err) reject(`[${commandName} err]: ${err.message}`);
-
-        if (stdout.indexOf('Unknown') >= 1) reject(`[${commandName} err]: ${stdout}`);
-
-        resolve('Operation Done');
-        });
-    }); // @Promis
-}; // @Function: ExecuteCommand();
-
-
-
-
-
-/**
- * Mongodump is a utility for creating a binary export of the contents of a database.
- * More: https://docs.mongodb.com/manual/reference/program/mongodump/
- * 
- * @public
- * 
- * @param {Object} options 
- * 
- * // => You cannot use the --archive option with the --out option.
- * @param {String} options.archive          test.20150715.gz
- * 
- * @param {Boolean} options.gzip            false
- * @param {String} options.hostName         localhost
- * @param {String} options.userName         admin
- * @param {String} options.password         12345
- * @param {String} options.port             27017
- * @param {String} options.databaseName     productsReview
- * @param {String} options.collectionName   rate
- * @param {String} options.output           ./output.json
- * 
- * 
- * @description command descriptions/example:
- * -h <hostname><:port> => optional
- * -u <username>        => optional
- * -p <password>        => optional
- * -d <database>
- * -c <collection>      => optional
- * --gzip               => optional
- * -o <path>            => optional
- * 
- * @example 
- *  // fully command:   mongodump -h <hostname><:port> -u <username> -p <password> -d <database> -c <collection> --gzip -o <path>
- *  // short command:   mongodump -d <database> 
- * 
- * @returns {Promise}
- */
-const mongodump = (options) => {
-    
-    return new Promise( async (resolve, reject) => {
-
-        let command = `mongodump`;
-
-        if(options.archive)
-            command += ` --archive=${options.archive} `;
-
-        if(options.gzip)
-            command += ` --gzip `;
-
-        // Default: localhost:27017 base on document.
-        if(options.hostName && options.port)
-            command += `-h ${options.hostName}:${options.port}`;
-
-        if(options.password && options.userName)
-            command += ` -u ${options.password} -p ${options.userName} `;
-        
-        if(options.databaseName)
-            command += ` -d ${options.databaseName} `;
-        else
-            throw new Error("databaseName option needed.");
-
-        if(options.collectionName)
-            command += ` -c ${options.collectionName} `;
-        
-        if(options.output)
-            command += ` -o ${options.output} `;
-        
-        console.log(command)
-        try {
-            await ExecuteCommand(command, "mongodump");
-            resolve("done");
-        } catch (error) {
-            reject(error.message);
-        }
-
-    }) // @Promis()
-    
-} // @Function: mongodump()
-
-
- 
-/**
- * Export mongodb collection by 'mongoexport' native command (JSON type).
- * More: https://docs.mongodb.com/manual/reference/program/mongoexport/
- * 
- * WARNING:
- * Avoid using mongoimport and mongoexport for full instance production backups. They do not reliably
- * preserve all rich BSON data types, because JSON can only represent a subset of the types supported by BSON.
- * Use mongodump and mongorestore as described in MongoDB Backup Methods for this kind of functionality.
- * 
- * @public
- * 
- * @param {Object} options 
- * @param {String} options.hostName         localhost
- * @param {String} options.userName         admin
- * @param {String} options.password         12345
- * @param {String} options.port             27017
- * @param {String} options.databaseName     productsReview
- * @param {String} options.collectionName   rate
- * @param {String} options.output           ./output.json
- * 
- * 
- * @description command descriptions/example:
- * -h <hostname><:port> => optional
- * -u <username>        => optional
- * -p <password>        => optional
- * -d <database>
- * -c <collection>
- * -o <file>
- * 
- * @example 
- *  // fully command:   mongoexport -h <hostname>:<:port> -u <username> -p <password> -d <database> -c <collection> -o <file.json>
- *  // short command:   mongoexport -d <database> -c <collection> -o <file.json>
- * 
- * @returns {Promise}
- */
-const mongoexport = (options) => {
-
-    return new Promise( async (resolve, reject) => {
-        
-        let command = `mongoexport `;
-
-        // Default: localhost:27017 base on document.
-        if(options.hostName && options.port)
-            command += `-h ${options.hostName}:${options.port}`;
-
-        if(options.password && options.userName)
-            command += ` -u ${options.password} -p ${options.userName} `;
-        
-        if(options.databaseName)
-            command += ` -d ${options.databaseName} `;
-        else
-            throw new Error("databaseName option needed.");
-
-        if(options.collectionName)
-            command += ` -c ${options.collectionName} `;
-        else
-            throw new Error("collectionName option needed.");
-
-        if(options.output)
-            command += `-o ${options.output}`;
-        else
-          throw new Error("output option needed.");
-        
-        try {
-            await ExecuteCommand(command, "mongoexport");
-            resolve("done");
-        } catch (error) {
-            reject(error.message);
-        }
-
-    }) // @Promis()
-    
-} // @Function: mongoexport()
-
-
-module.exports = {
-    mongodump,
-    mongoexport
+function stringOption(options, name, required = false) {
+    const value = options[name];
+    if (value === undefined && !required) return undefined;
+    if (typeof value !== 'string' || (required && value.trim() === '') || value.includes('\0')) {
+        throw new TypeError(`${name} must be ${required ? 'a nonempty' : 'a'} string without null bytes.`);
+    }
+    return value;
 }
+
+function commonArguments(options) {
+    if (!options || typeof options !== 'object' || Array.isArray(options)) {
+        throw new TypeError('options must be an object.');
+    }
+    const args = [];
+    const host = stringOption(options, 'hostName');
+    if (host !== undefined) args.push(`--host=${host}`);
+    if (options.port !== undefined) {
+        const port = String(options.port);
+        if (!/^\d+$/.test(port) || Number(port) < 1 || Number(port) > 65535) {
+            throw new TypeError('port must be an integer from 1 to 65535.');
+        }
+        args.push(`--port=${port}`);
+    }
+    const username = stringOption(options, 'userName');
+    const password = stringOption(options, 'password');
+    if ((username === undefined) !== (password === undefined)) {
+        throw new TypeError('userName and password must be supplied together.');
+    }
+    if (username !== undefined) {
+        args.push(`--username=${username}`, `--password=${password}`);
+    }
+    args.push(`--db=${stringOption(options, 'databaseName', true)}`);
+    return args;
+}
+
+function execute(tool, args) {
+    return new Promise((resolve, reject) => {
+        const failed = error => {
+            // execFile's error.message may include the complete command and credentials.
+            // Do not echo arguments, stdout, stderr, or the raw child-process error.
+            const message = error.code === 'ENOENT'
+                ? `${tool} was not found on PATH.`
+                : `${tool} failed${typeof error.code === 'number' ? ` with exit code ${error.code}` : ''}.`;
+            const failure = new Error(message);
+            failure.name = 'MongoToolError';
+            if (typeof error.code === 'number' || /^[A-Z_]+$/.test(error.code || '')) failure.code = error.code;
+            reject(failure);
+        };
+        try {
+            childProcess.execFile(tool, args, { shell: false }, error => {
+                if (error) return failed(error);
+                resolve('done');
+            });
+        } catch (error) {
+            failed(error);
+        }
+    });
+}
+
+/** Binary BSON backup through MongoDB Database Tools; no shell is invoked. */
+async function mongodump(options) {
+    const args = commonArguments(options);
+    const archive = stringOption(options, 'archive');
+    const output = stringOption(options, 'output');
+    const collection = stringOption(options, 'collectionName');
+    if (archive !== undefined && output !== undefined) {
+        throw new TypeError('archive and output cannot be used together.');
+    }
+    if (options.gzip !== undefined && typeof options.gzip !== 'boolean') {
+        throw new TypeError('gzip must be a boolean.');
+    }
+    if (archive !== undefined) args.push(`--archive=${archive}`);
+    if (options.gzip) args.push('--gzip');
+    if (collection !== undefined) args.push(`--collection=${collection}`);
+    if (output !== undefined) args.push(`--out=${output}`);
+    return execute('mongodump', args);
+}
+
+/** JSON collection export, not a full-fidelity BSON backup. */
+async function mongoexport(options) {
+    const args = commonArguments(options);
+    args.push(`--collection=${stringOption(options, 'collectionName', true)}`);
+    args.push(`--out=${stringOption(options, 'output', true)}`);
+    return execute('mongoexport', args);
+}
+
+module.exports = { mongodump, mongoexport };
